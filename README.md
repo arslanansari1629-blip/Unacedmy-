@@ -1,7 +1,10 @@
 # Study Bison — Study Smarter, Rise Higher
 
-A free study-companion site: 54 exam goals, each with lecture series, notes & PDFs, and educators.
-Rebuilt as a production Next.js app (Next 16 / React 19 / Tailwind 3).
+A **live** free study site: 54 exam goals, each with the real educators teaching it, their batches,
+every lecture (playable), and the notes/slides PDFs attached to each class.
+
+Not a static mock-up — the content comes from the same public catalogue the original app uses:
+`/api/teachers → /api/courses → /api/lectures`, with real `goal_uid`s from Unacademy's own catalog.
 
 **Live (public):** https://unacedmy-studybison.vercel.app
 **Deployment URL:** https://unacedmy-study-arslanansari1629-blips-projects.vercel.app
@@ -14,11 +17,16 @@ _(the `*.vercel.app` project alias stays behind team Deployment Protection — t
 | --- | --- |
 | `/` | Hero, stats, goal explorer (search + category filters), feature blocks |
 | `/goals` | Full library of all 54 goals |
-| `/goals/[slug]` | Goal detail: Lectures / PDFs & Notes / Educators tabs, related goals (SSG, 54 pages) |
+| `/goals/[slug]` | Live educators for that goal (avatars, bios, ratings, followers) |
+| `/teachers/[username]` | Educator profile + all their batches |
+| `/teachers/[username]/batch/[uid]` | Every lecture in the batch, playable, with notes PDFs |
 | `/my-courses` | Saved goals, persisted in `localStorage` |
 | `/source` | Live source status: upstream health, latency, proxy docs |
 | `/api/proxy/**` | Reverse proxy to the upstream site (HTML/CSS/JS rewritten) |
 | `/api/health` | JSON upstream reachability + latency |
+| `/api/player` | Same-origin lecture player (host allowlist: `*.uacdn.net`) |
+| `/api/stream` | Inline PDF passthrough with Range (host allowlist: `*.uacdn.net`) |
+| `/api/inspect`, `/api/dump` | Dev diagnostics used to discover the upstream API |
 | `/robots.txt` | SEO |
 
 ## Stack
@@ -35,6 +43,21 @@ npm install
 npm run dev     # http://localhost:3000
 npm run build && npm start
 ```
+
+## Live content chain
+
+```
+goal_uid  ──►  /api/teachers?goal_uid=…      → real educators per goal
+               /api/courses?username=…&type=  → that educator's batches (504 for one JEE teacher)
+               /api/lectures?uid=…            → every lecture, video_url + slides_pdf
+               /api/player?url=…              → same-origin player for the replay
+               /api/stream?url=…              → PDF passthrough (inline, Range) for notes
+```
+
+The 54 `goal_uid`s are the real ones the source app uses (e.g. `TMUVD` = JEE, `KSCGY` = UPSC),
+read from its bundle. Verified live: JEE returns 10 educators incl. Vineet Loomba (1.6L followers),
+UPSC returns Mrunal Patel (5.4L followers), and a 15-lecture batch resolves with durations, dates,
+annotated notes and a working player.
 
 ## Live proxy
 
