@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { GoalExplorer } from '@/components/GoalExplorer';
+import { RecentlyWatched } from '@/components/RecentlyWatched';
 import { goals } from '@/lib/goals';
 import { fetchCourses, fetchTeachers } from '@/lib/api';
 
@@ -74,6 +75,8 @@ export default async function HomePage() {
           </dl>
         </div>
       </section>
+
+      <RecentlyWatched />
 
       <GoalExplorer />
 

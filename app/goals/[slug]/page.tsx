@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { goals, getGoal } from '@/lib/goals';
-import { fetchTeachers, teacherName } from '@/lib/api';
+import { fetchAllTeachers, fetchTeachers, teacherName } from '@/lib/api';
 import { TeacherGrid } from '@/components/TeacherGrid';
 import { SaveButton } from '@/components/SaveButton';
 import { LiveBadge } from '@/components/LiveBadge';
@@ -23,12 +23,25 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   };
 }
 
-export default async function GoalPage({ params }: { params: Promise<{ slug: string }> }) {
+export default async function GoalPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ slug: string }>;
+  searchParams: Promise<{ page?: string }>;
+}) {
   const { slug } = await params;
+  const { page } = await searchParams;
   const goal = getGoal(slug);
   if (!goal) notFound();
 
+  const PAGE = 36;
+  const pageNo = Math.max(1, Math.min(30, Number(page ?? '1') || 1));
+  const all = await fetchAllTeachers(goal.uid, 6);
   const teachers = await fetchTeachers(goal.uid);
+  const total = teachers?.count ?? all.length;
+  const shown = all.slice((pageNo - 1) * PAGE, pageNo * PAGE);
+  const lastPage = Math.max(1, Math.ceil(Math.min(all.length, PAGE * 30) / PAGE));
   const related = goals.filter((g) => g.category === goal.category && g.slug !== goal.slug).slice(0, 4);
   const names = (teachers?.results ?? []).slice(0, 3).map(teacherName);
 
@@ -86,7 +99,31 @@ export default async function GoalPage({ params }: { params: Promise<{ slug: str
           {teachers?.count ? <span className="text-sm font-normal text-white/40">{teachers.count}</span> : null}
         </h2>
 
-        <TeacherGrid teachers={teachers?.results ?? []} goalSlug={goal.slug} goalName={goal.name} />
+        <TeacherGrid teachers={shown} goalSlug={goal.slug} goalName={goal.name} />
+
+        {lastPage > 1 ? (
+          <nav className="mt-8 flex items-center justify-center gap-2">
+            {pageNo > 1 ? (
+              <Link
+                href={`/goals/${goal.slug}?page=${pageNo - 1}`}
+                className="rounded-full border border-white/12 px-4 py-2 text-[12px] font-semibold text-white/70 hover:border-white/35 hover:text-white"
+              >
+                ← Previous
+              </Link>
+            ) : null}
+            <span className="px-2 text-[12px] text-white/45">
+              Page {pageNo} of {lastPage} · {all.length} of {total} educators
+            </span>
+            {pageNo < lastPage ? (
+              <Link
+                href={`/goals/${goal.slug}?page=${pageNo + 1}`}
+                className="rounded-full border border-white/12 px-4 py-2 text-[12px] font-semibold text-white/70 hover:border-white/35 hover:text-white"
+              >
+                Next →
+              </Link>
+            ) : null}
+          </nav>
+        ) : null}
       </section>
 
       <section className="mx-auto mt-16 w-full max-w-6xl px-4 sm:px-6">

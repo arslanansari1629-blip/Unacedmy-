@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { fetchCourses, fetchTeachers, teacherAvatar, teacherName, Teacher, initials } from '@/lib/api';
+import { fetchAllCourses, fetchCourses, fetchTeachers, teacherAvatar, teacherName, Teacher, initials } from '@/lib/api';
 import { getGoal, goals } from '@/lib/goals';
 import { BatchGrid } from '@/components/BatchGrid';
 import { LiveBadge } from '@/components/LiveBadge';
@@ -33,14 +33,19 @@ export default async function TeacherPage({
   searchParams,
 }: {
   params: Promise<Params>;
-  searchParams: Promise<{ goal?: string }>;
+  searchParams: Promise<{ goal?: string; page?: string; sort?: string }>;
 }) {
   const { username } = await params;
-  const { goal } = await searchParams;
+  const { goal, page, sort } = await searchParams;
   const teacher = await findTeacher(username, goal);
   if (!teacher) notFound();
 
-  const courses = await fetchCourses(teacher.username, 0, 'popular');
+  const type = sort === 'recent' ? 'recent' : 'popular';
+  const courses = await fetchAllCourses(teacher.username, 6, type);
+  const PAGE = 24;
+  const pageNo = Math.max(1, Math.min(30, Number(page ?? '1') || 1));
+  const shown = courses.results.slice((pageNo - 1) * PAGE, pageNo * PAGE);
+  const lastPage = Math.max(1, Math.ceil(courses.results.length / PAGE));
   const name = teacherName(teacher);
   const av = teacherAvatar(teacher);
   const goalRecord = getGoal(goal ?? '');
@@ -110,14 +115,64 @@ export default async function TeacherPage({
         ) : null}
       </h2>
 
+      <div className="mt-4 flex flex-wrap items-center gap-2">
+        {[
+          { key: 'popular', label: 'Most popular' },
+          { key: 'recent', label: 'Newest' },
+        ].map((t) => {
+          const active = type === t.key;
+          return (
+            <Link
+              key={t.key}
+              href={`/teachers/${teacher.username}?goal=${goal ?? ''}&sort=${t.key}`}
+              className={`rounded-full border px-3.5 py-1.5 text-[11px] font-semibold transition ${
+                active
+                  ? 'border-white/30 bg-white/10 text-white'
+                  : 'border-white/10 text-white/55 hover:border-white/25 hover:text-white'
+              }`}
+            >
+              {t.label}
+            </Link>
+          );
+        })}
+        <span className="ml-auto text-[11px] text-white/35">
+          {courses.results.length} batches loaded
+        </span>
+      </div>
+
       <BatchGrid
-        courses={courses?.results ?? []}
+        courses={shown}
         hrefFor={(uid) => `/teachers/${teacher.username}/batch/${uid}?goal=${goal ?? ''}`}
       />
 
-      {courses?.next ? (
+      {lastPage > 1 ? (
+        <nav className="mt-8 flex items-center justify-center gap-2">
+          {pageNo > 1 ? (
+            <Link
+              href={`/teachers/${teacher.username}?goal=${goal ?? ''}&sort=${type}&page=${pageNo - 1}`}
+              className="rounded-full border border-white/12 px-4 py-2 text-[12px] font-semibold text-white/70 hover:border-white/35 hover:text-white"
+            >
+              ← Previous
+            </Link>
+          ) : null}
+          <span className="px-2 text-[12px] text-white/45">
+            Page {pageNo} of {lastPage} · {courses.results.length} of {courses.count} batches
+          </span>
+          {pageNo < lastPage ? (
+            <Link
+              href={`/teachers/${teacher.username}?goal=${goal ?? ''}&sort=${type}&page=${pageNo + 1}`}
+              className="rounded-full border border-white/12 px-4 py-2 text-[12px] font-semibold text-white/70 hover:border-white/35 hover:text-white"
+            >
+              Next →
+            </Link>
+          ) : null}
+        </nav>
+      ) : null}
+
+      {lastPage <= 1 ? (
         <p className="mt-6 text-center text-[11px] text-white/35">
-          Showing the first {courses.results.length} of {courses.count} — the newest and most popular are listed first.
+          {courses.results.length} batch{courses.results.length === 1 ? '' : 'es'} on this educator, sorted by{' '}
+          {type === 'recent' ? 'newest' : 'popularity'}.
         </p>
       ) : null}
     </section>

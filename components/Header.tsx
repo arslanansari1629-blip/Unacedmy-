@@ -9,6 +9,7 @@ import { useSavedCourses } from './SavedCourses';
 const links = [
   { href: '/', label: 'Home' },
   { href: '/goals', label: 'Goals' },
+  { href: '/search', label: 'Search' },
   { href: '/my-courses', label: 'My Courses' },
   { href: '/source', label: 'Live Source' },
 ];

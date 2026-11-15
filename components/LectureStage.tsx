@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { recordRecent } from './RecentlyWatched';
 
 type SideItem = {
   uid: string;
@@ -58,7 +59,8 @@ export function LectureStage({
       const raw = localStorage.getItem(KEY);
       if (raw) setWatched(JSON.parse(raw));
     } catch {}
-  }, []);
+    recordRecent({ lectureUid, courseUid, title, goal, teacher });
+  }, [lectureUid, courseUid, title, goal, teacher]);
 
   const toggleWatched = useCallback(() => {
     setWatched((prevW) => {
@@ -137,10 +139,10 @@ export function LectureStage({
               {videoUrl ? (
                 <iframe
                   key={videoUrl}
-                  src={`/api/media/${videoUrl.replace(/^https?:\/\//, '')}`}
+                  src={videoUrl}
                   title={title}
                   className="absolute inset-0 h-full w-full border-0"
-                  allow="autoplay; fullscreen; picture-in-picture; encrypted-media"
+                  allow="autoplay; fullscreen; picture-in-picture; encrypted-media; clipboard-write"
                   allowFullScreen
                   referrerPolicy="no-referrer"
                 />
@@ -231,9 +233,10 @@ export function LectureStage({
           ) : null}
         </div>
 
-        <p className="mt-3 rounded-xl border border-amber-400/20 bg-amber-400/[0.07] px-3 py-2 text-[11px] leading-relaxed text-amber-200/80">
-          Video streams from Unacademy&apos;s official player. Paid (&ldquo;Plus&rdquo;) classes may ask you to sign in
-          there — that gate is Unacademy&apos;s and is not bypassed here. Slides and notes are open.
+        <p className="mt-3 rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2 text-[11px] leading-relaxed text-white/50">
+          Video is delivered by Unacademy&apos;s official player, embedded as-is. Some classes are &ldquo;Plus&rdquo;
+          (paid) and will ask you to sign in with an Unacademy account — that gate is theirs and this site does not
+          bypass it. Slides, notes and PDFs on this page are open to everyone.
         </p>
       </div>
 

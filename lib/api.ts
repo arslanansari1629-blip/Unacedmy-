@@ -107,6 +107,30 @@ export async function fetchLectures(courseUid: string) {
   return getJson<Page<Lecture>>(`/api/lectures?uid=${encodeURIComponent(courseUid)}`);
 }
 
+/** Every educator of a goal, walking upstream pages (bounded). */
+export async function fetchAllTeachers(goalUid: string, maxPages = 6) {
+  const out: Teacher[] = [];
+  for (let page = 0; page < maxPages; page += 1) {
+    const chunk = await fetchTeachers(goalUid, page * 9);
+    if (!chunk?.results?.length) break;
+    out.push(...chunk.results);
+    if (!chunk.next) break;
+  }
+  return out;
+}
+
+/** Every batch of one educator across pages (bounded). */
+export async function fetchAllCourses(username: string, maxPages = 6, type = 'popular') {
+  const out: Course[] = [];
+  for (let page = 0; page < maxPages; page += 1) {
+    const chunk = await fetchCourses(username, page * 12, type);
+    if (!chunk?.results?.length) break;
+    out.push(...chunk.results);
+    if (!chunk.next) break;
+  }
+  return { count: out.length, results: out };
+}
+
 /** Fetch a page of all courses for a goal by walking its educators (bounded). */
 export async function fetchGoalCatalogue(goalUid: string, maxTeachers = 4, perTeacher = 2) {
   const teachersPage = await fetchTeachers(goalUid);
