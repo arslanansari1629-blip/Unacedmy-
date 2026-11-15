@@ -1,15 +1,29 @@
 import Link from 'next/link';
 import { GoalExplorer } from '@/components/GoalExplorer';
 import { goals } from '@/lib/goals';
+import { fetchCourses, fetchTeachers } from '@/lib/api';
 
-const stats = [
-  { value: '54', label: 'Goals covered' },
-  { value: '430+', label: 'Lecture series' },
-  { value: '600+', label: 'Notes & PDFs' },
-  { value: '₹0', label: 'Forever free' },
-];
+export const revalidate = 600;
 
-export default function HomePage() {
+/** Real numbers pulled from the live catalog, with safe fallbacks. */
+async function getStats() {
+  const [jee, upsc] = await Promise.all([
+    fetchTeachers('TMUVD'),
+    fetchTeachers('KSCGY'),
+  ]);
+  const firstTeacher = jee?.results?.[0]?.username;
+  const courses = firstTeacher ? await fetchCourses(firstTeacher) : null;
+
+  return [
+    { value: String(goals.length), label: 'Goals covered' },
+    { value: jee?.count ? `${jee.count}+` : '10+', label: 'JEE educators' },
+    { value: upsc?.count ? `${upsc.count}+` : '10+', label: 'UPSC educators' },
+    { value: courses?.count ? `${courses.count}` : '500+', label: 'Batches (1 educator)' },
+  ];
+}
+
+export default async function HomePage() {
+  const stats = await getStats();
   return (
     <>
       <section className="relative mx-auto w-full max-w-6xl px-4 pb-12 pt-10 sm:px-6 sm:pt-16">

@@ -1,18 +1,20 @@
 export type Goal = {
+  /** Upstream goal UID used by the live API (goal_uid param). */
+  uid: string;
   slug: string;
   name: string;
   emoji: string;
   category: Category;
-  short?: string;
 };
 
 export type Category =
-  | 'STATE & CIVIL SERVICES'
-  | 'SCHOOL & ENGINEERING'
-  | 'GOVT & BANKING'
-  | 'MBA & SKILLS'
-  | 'ENGINEERING & SCIENCE'
-  | 'COMMERCE & LAW';
+  | 'School & Engineering'
+  | 'State & Civil Services'
+  | 'Govt & Banking'
+  | 'MBA & Skills'
+  | 'Engineering & Science'
+  | 'Commerce & Law'
+  | 'Medical';
 
 export const slugify = (s: string) =>
   s
@@ -22,79 +24,99 @@ export const slugify = (s: string) =>
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '');
 
-const raw: Array<[string, string, Category]> = [
-  ['UPSC Civil Services (IAS)', '🏛️', 'STATE & CIVIL SERVICES'],
-  ['JEE Main & Advanced', '⚗️', 'SCHOOL & ENGINEERING'],
-  ['NEET UG', '🧬', 'SCHOOL & ENGINEERING'],
-  ['SSC Exams', '📋', 'GOVT & BANKING'],
-  ['GRE', '🌍', 'MBA & SKILLS'],
-  ['CAT', '📊', 'MBA & SKILLS'],
-  ['NTA UGC NET', '🎓', 'ENGINEERING & SCIENCE'],
-  ['Bank Exams', '🏦', 'GOVT & BANKING'],
-  ['CA (Chartered Accountancy)', '💼', 'COMMERCE & LAW'],
-  ['Law Entrance Exams', '⚖️', 'COMMERCE & LAW'],
-  ['IELTS', '🗣️', 'MBA & SKILLS'],
-  ['MP PSC', '🗺️', 'STATE & CIVIL SERVICES'],
-  ['Maharashtra PSC', '🗺️', 'STATE & CIVIL SERVICES'],
-  ['Punjab PSC', '🗺️', 'STATE & CIVIL SERVICES'],
-  ['Railway Exams', '🚂', 'GOVT & BANKING'],
-  ['Rajasthan PSC', '🗺️', 'STATE & CIVIL SERVICES'],
-  ['UP PSC / UPSSSC', '🗺️', 'STATE & CIVIL SERVICES'],
-  ['English Language', '🔤', 'GOVT & BANKING'],
-  ['Campus Placements', '💻', 'MBA & SKILLS'],
-  ['Class 9', '📚', 'SCHOOL & ENGINEERING'],
-  ['Class 10', '📚', 'SCHOOL & ENGINEERING'],
-  ['Class 11', '📚', 'SCHOOL & ENGINEERING'],
-  ['Personal Development', '🌟', 'GOVT & BANKING'],
-  ['Tamil Nadu PSC', '🗺️', 'STATE & CIVIL SERVICES'],
-  ['CDS / AFCAT / CAPF', '🪖', 'MBA & SKILLS'],
-  ['GMAT', '📈', 'MBA & SKILLS'],
-  ['GATE', '⚙️', 'ENGINEERING & SCIENCE'],
-  ['Karnataka PSC', '🗺️', 'STATE & CIVIL SERVICES'],
-  ['AP PSC / Telangana PSC', '🗺️', 'STATE & CIVIL SERVICES'],
-  ['GATE - CSIT, DSAI', '⚙️', 'ENGINEERING & SCIENCE'],
-  ['Kerala PSC', '🗺️', 'STATE & CIVIL SERVICES'],
-  ['Gujarat PSC', '🗺️', 'STATE & CIVIL SERVICES'],
-  ['West Bengal PSC', '🗺️', 'STATE & CIVIL SERVICES'],
-  ['DSSSB', '🏙️', 'STATE & CIVIL SERVICES'],
-  ['CSIR UGC NET', '🔬', 'ENGINEERING & SCIENCE'],
-  ['BPSC', '🗺️', 'STATE & CIVIL SERVICES'],
-  ['TET', '👩‍🏫', 'STATE & CIVIL SERVICES'],
-  ['UPTET', '👩‍🏫', 'STATE & CIVIL SERVICES'],
-  ['Class 12 Board', '📚', 'SCHOOL & ENGINEERING'],
-  ['OPSC', '🗺️', 'STATE & CIVIL SERVICES'],
-  ['Haryana PSC', '🗺️', 'STATE & CIVIL SERVICES'],
-  ['Jammu & Kashmir PSC', '🗺️', 'STATE & CIVIL SERVICES'],
-  ['IIT JAM', '🔭', 'ENGINEERING & SCIENCE'],
-  ['NEET PG', '🩺', 'SCHOOL & ENGINEERING'],
-  ['MP TET', '👩‍🏫', 'STATE & CIVIL SERVICES'],
-  ['Jharkhand PSC', '🗺️', 'STATE & CIVIL SERVICES'],
-  ['Programming', '💻', 'MBA & SKILLS'],
-  ['Company Secretary', '📑', 'COMMERCE & LAW'],
-  ['Rajasthan TET', '👩‍🏫', 'STATE & CIVIL SERVICES'],
-  ['Haryana TET', '👩‍🏫', 'STATE & CIVIL SERVICES'],
-  ['NDA / Airforce X-Y / Navy', '✈️', 'GOVT & BANKING'],
-  ['HPPSC', '🗺️', 'STATE & CIVIL SERVICES'],
-  ['Engineering Services Exam', '🔧', 'ENGINEERING & SCIENCE'],
-  ['Foundation NTSE', '🏆', 'COMMERCE & LAW'],
+/** Category rule mirrors the upstream app's own grouping logic exactly. */
+function groupFor(name: string): Category {
+  const s = name.toLowerCase();
+  if (s.includes('jee') || s.includes('neet') || s.includes('class ') || s.includes('board'))
+    return 'School & Engineering';
+  if (s.includes('psc') || s.includes('upsc') || s.includes('bpsc') || s.includes('dsssb') || s.includes('opsc') || s.includes('tet'))
+    return 'State & Civil Services';
+  if (s.includes('gate') || s.includes('csir') || s.includes('jam') || s.includes('ugc') || s.includes('ies') || s.includes('engineering'))
+    return 'Engineering & Science';
+  if (s.includes('cat') || s.includes('gre') || s.includes('gmat') || s.includes('ielts') || s.includes('placement') || s.includes('programming'))
+    return 'MBA & Skills';
+  if (s.includes('ca ') || s.includes('company') || s.includes('law') || s.includes('ntse')) return 'Commerce & Law';
+  if (s.includes('neet pg')) return 'Medical';
+  return 'Govt & Banking';
+}
+
+/** Real goal UIDs read from the source app's bundle — these drive every API call. */
+const RAW: Array<[string, string, string]> = [
+  ['KSCGY', 'UPSC Civil Services (IAS)', '🏛️'],
+  ['TMUVD', 'JEE Main & Advanced', '⚗️'],
+  ['YOTUH', 'NEET UG', '🧬'],
+  ['VLEMN', 'SSC Exams', '📋'],
+  ['MAFGF', 'GRE', '🌍'],
+  ['XNDUS', 'CAT', '📊'],
+  ['TEWDQ', 'NTA UGC NET', '🎓'],
+  ['RTPSX', 'Bank Exams', '🏦'],
+  ['BBKWG', 'CA (Chartered Accountancy)', '💼'],
+  ['MRZFY', 'Law Entrance Exams', '⚖️'],
+  ['DZVHL', 'IELTS', '🗣️'],
+  ['GWDPV', 'MP PSC', '🗺️'],
+  ['GNFFE', 'Maharashtra PSC', '🗺️'],
+  ['FHWHO', 'Punjab PSC', '🗺️'],
+  ['QJEJG', 'Railway Exams', '🚂'],
+  ['SCANJ', 'Rajasthan PSC', '🗺️'],
+  ['XCTVJ', 'UP PSC / UPSSSC', '🗺️'],
+  ['EWFJR', 'English Language', '🔤'],
+  ['NJHPJ', 'Campus Placements', '💻'],
+  ['SUVLV', 'Class 9', '📚'],
+  ['GSZGO', 'Class 10', '📚'],
+  ['GWDPZ', 'Class 11', '📚'],
+  ['DOZGI', 'Personal Development', '🌟'],
+  ['ZISFF', 'Tamil Nadu PSC', '🗺️'],
+  ['TUNWK', 'CDS / AFCAT / CAPF', '🪖'],
+  ['LGQVU', 'GMAT', '📈'],
+  ['PESHE', 'GATE', '⚙️'],
+  ['LVECA', 'Karnataka PSC', '🗺️'],
+  ['QKHZF', 'AP PSC / Telangana PSC', '🗺️'],
+  ['NVLIA', 'GATE - CSIT, DSAI', '⚙️'],
+  ['ZIUBD', 'Kerala PSC', '🗺️'],
+  ['RJVOD', 'Gujarat PSC', '🗺️'],
+  ['UQCMN', 'West Bengal PSC', '🗺️'],
+  ['JJTHM', 'DSSSB', '🏙️'],
+  ['BIZXQ', 'CSIR UGC NET', '🔬'],
+  ['QOIVT', 'BPSC', '🗺️'],
+  ['GMXMZ', 'TET', '👩‍🏫'],
+  ['IFKUZ', 'UPTET', '👩‍🏫'],
+  ['PLWCX', 'Class 12 Board', '📚'],
+  ['XTKHH', 'OPSC', '🗺️'],
+  ['ZKXEQ', 'Haryana PSC', '🗺️'],
+  ['EGKYI', 'Jammu & Kashmir PSC', '🗺️'],
+  ['SIFWL', 'IIT JAM', '🔭'],
+  ['SDDOC', 'NEET PG', '🩺'],
+  ['WXKBF', 'MP TET', '👩‍🏫'],
+  ['AELON', 'Jharkhand PSC', '🗺️'],
+  ['DOKOV', 'Programming', '💻'],
+  ['MCRYW', 'Company Secretary', '📑'],
+  ['SWBEI', 'Rajasthan TET', '👩‍🏫'],
+  ['WJWZU', 'Haryana TET', '👩‍🏫'],
+  ['DANNJ', 'NDA / Airforce X-Y / Navy', '✈️'],
+  ['JXGKD', 'HPPSC', '🗺️'],
+  ['QFJOA', 'Engineering Services Exam', '🔧'],
+  ['TPSBK', 'Foundation NTSE', '🏆'],
 ];
 
-export const goals: Goal[] = raw.map(([name, emoji, category]) => ({
+export const goals: Goal[] = RAW.map(([uid, name, emoji]) => ({
+  uid,
   slug: slugify(name),
   name,
   emoji,
-  category,
+  category: groupFor(name),
 }));
 
 export const categories: Category[] = [
-  'SCHOOL & ENGINEERING',
-  'STATE & CIVIL SERVICES',
-  'GOVT & BANKING',
-  'ENGINEERING & SCIENCE',
-  'MBA & SKILLS',
-  'COMMERCE & LAW',
+  'School & Engineering',
+  'State & Civil Services',
+  'Govt & Banking',
+  'Engineering & Science',
+  'MBA & Skills',
+  'Commerce & Law',
+  'Medical',
 ];
 
 export const quickPicks = ['JEE', 'NEET', 'UPSC', 'GATE', 'SSC', 'Class 12'];
 
 export const getGoal = (slug: string) => goals.find((g) => g.slug === slug);
+export const getGoalByUid = (uid: string) => goals.find((g) => g.uid === uid);

@@ -2,9 +2,12 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { goals, getGoal } from '@/lib/goals';
-import { buildEducators, buildLectures, buildPdfs } from '@/lib/content';
-import { GoalTabs } from '@/components/GoalTabs';
+import { fetchTeachers, teacherName } from '@/lib/api';
+import { TeacherGrid } from '@/components/TeacherGrid';
 import { SaveButton } from '@/components/SaveButton';
+import { LiveBadge } from '@/components/LiveBadge';
+
+export const revalidate = 600;
 
 export function generateStaticParams() {
   return goals.map((g) => ({ slug: g.slug }));
@@ -16,7 +19,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   if (!goal) return { title: 'Goal not found' };
   return {
     title: goal.name,
-    description: `Free ${goal.name} lectures, handwritten notes, slide PDFs and top educators on Study Bison.`,
+    description: `Educators, batches, lectures, notes and PDFs for ${goal.name} — streamed free on Study Bison.`,
   };
 }
 
@@ -25,12 +28,9 @@ export default async function GoalPage({ params }: { params: Promise<{ slug: str
   const goal = getGoal(slug);
   if (!goal) notFound();
 
-  const lectures = buildLectures(goal);
-  const pdfs = buildPdfs(goal);
-  const educators = buildEducators(goal);
-  const related = goals
-    .filter((g) => g.category === goal.category && g.slug !== goal.slug)
-    .slice(0, 4);
+  const teachers = await fetchTeachers(goal.uid);
+  const related = goals.filter((g) => g.category === goal.category && g.slug !== goal.slug).slice(0, 4);
+  const names = (teachers?.results ?? []).slice(0, 3).map(teacherName);
 
   return (
     <>
@@ -54,8 +54,9 @@ export default async function GoalPage({ params }: { params: Promise<{ slug: str
                 {goal.name}
               </h1>
               <p className="mt-2 max-w-lg text-sm leading-relaxed text-white/55">
-                Complete free library for {goal.name} — {lectures.length} lecture series, {pdfs.length} notes &amp; PDF
-                sets and {educators.length} top educators.
+                {teachers?.count
+                  ? `${teachers.count} educators teaching ${goal.name}${names.length ? ` — including ${names.join(', ')}` : ''}. Open an educator to browse their batches and lectures.`
+                  : `Live catalog for ${goal.name}.`}
               </p>
             </div>
           </div>
@@ -72,20 +73,20 @@ export default async function GoalPage({ params }: { params: Promise<{ slug: str
           </div>
         </div>
 
-        <div className="mt-6 grid grid-cols-3 gap-3">
-          {[
-            { v: lectures.length, l: 'Lecture series' },
-            { v: pdfs.length, l: 'Notes & PDFs' },
-            { v: educators.length, l: 'Educators' },
-          ].map((s) => (
-            <div key={s.l} className="glass rounded-2xl px-4 py-3">
-              <p className="font-display text-xl font-extrabold">{s.v}</p>
-              <p className="text-[10.5px] uppercase tracking-[0.12em] text-white/40">{s.l}</p>
-            </div>
-          ))}
+        <div className="mt-6 flex flex-wrap items-center gap-2">
+          <LiveBadge label="Live data from Unacademy" />
+          <span className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-[11px] text-white/50">
+            goal_uid · {goal.uid}
+          </span>
         </div>
 
-        <GoalTabs lectures={lectures} pdfs={pdfs} educators={educators} goalName={goal.name} />
+        <h2 className="mt-10 flex items-center gap-3 font-display text-lg font-bold">
+          <span className="h-px w-6 bg-gradient-to-r from-brand to-transparent" />
+          Educators
+          {teachers?.count ? <span className="text-sm font-normal text-white/40">{teachers.count}</span> : null}
+        </h2>
+
+        <TeacherGrid teachers={teachers?.results ?? []} goalSlug={goal.slug} goalName={goal.name} />
       </section>
 
       <section className="mx-auto mt-16 w-full max-w-6xl px-4 sm:px-6">
