@@ -97,6 +97,7 @@ export default async function LecturePage({
         title={lecture.title}
         videoUrl={lc?.video_url ?? null}
         mediaUrl={mediaFromVideoUrl(lc?.video_url)}
+        expectedDuration={lc?.video_duration ?? 0}
         slidesWith={lc?.slides_pdf?.with_annotation ?? null}
         slidesClean={lc?.slides_pdf?.no_annotation ?? null}
         permalink={lecture.permalink ?? null}

@@ -29,6 +29,7 @@ export function LectureStage({
   title,
   videoUrl,
   mediaUrl,
+  expectedDuration = 0,
   slidesWith,
   slidesClean,
   permalink,
@@ -44,6 +45,7 @@ export function LectureStage({
   title: string;
   videoUrl: string | null;
   mediaUrl: string | null;
+  expectedDuration?: number;
   slidesWith: string | null;
   slidesClean: string | null;
   permalink: string | null;
@@ -167,7 +169,7 @@ export function LectureStage({
                   controls
                   controlsList="nodownload"
                   playsInline
-                  preload="metadata"
+                  preload="auto"
                   poster={undefined}
                   className="absolute inset-0 h-full w-full bg-black object-contain"
                   onLoadedMetadata={(e) => {
@@ -213,7 +215,7 @@ export function LectureStage({
                   </div>
                 </div>
               )}
-              {videoUrl ? (
+              {videoUrl && !mediaUrl ? (
                 <div className="pointer-events-none absolute inset-x-0 bottom-0 flex items-center justify-between gap-2 bg-gradient-to-t from-black/80 to-transparent px-3 pb-2 pt-8">
                   <span className="pointer-events-auto text-[10.5px] text-white/55">
                     Official Unacademy player · login may be required
@@ -244,7 +246,7 @@ export function LectureStage({
                     {playing ? '❚❚' : '▶'}
                   </button>
                   <span className="ml-1 font-mono text-[10.5px] text-white/50">
-                    {fmtTime(now)} / {fmtTime(duration)}
+                    {fmtTime(now)} / {fmtTime(duration || expectedDuration)}
                   </span>
                   {resumed ? (
                     <span className="rounded-full bg-sky-400/15 px-2 py-0.5 text-[10px] font-semibold text-sky-300">
