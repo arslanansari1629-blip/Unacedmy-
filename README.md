@@ -28,41 +28,33 @@ _(the `*.vercel.app` project alias stays behind team Deployment Protection — t
 | `/api/health` | JSON upstream reachability + latency |
 | `/api/player` | Same-origin lecture player (host allowlist: `*.uacdn.net`) |
 | `/api/stream` | Inline PDF passthrough with Range (host allowlist: `*.uacdn.net`) |
+| `/api/media?url=` | **Lecture video stream** — Range/206 passthrough for `uamedia.uacdn.net` recordings |
 | `/api/asset` | Raw whitelisted `*.uacdn.net` asset passthrough |
 | `/robots.txt` | SEO |
 
-## About lecture playback (verified, not guesswork)
+## Lecture playback — solved
 
-Unacademy does not publish direct media files, and I verified this down to the byte level
-rather than assuming it:
+A recorded class exposes `live_class.video_url`, an official player page:
+`player.uacdn.net/liveweb/v…/index.html?replay=true&uid=<CLASS_UID>&chat_id=<LESSON_UID>`.
 
-1. A lecture exposes only `live_class.video_url` — an official player page
-   (`player.uacdn.net/liveweb/v…/index.html?replay=true&uid=…&chat_id=…`).
-2. The player's webpack chunk *names* are not in `index.html`; only the runtime has hashes.
-   Resolving names to files correctly (they 403 if built wrong) shows
-   `recordedVideoPlayer`, `vendors~recordedVideoPlayer`, `replay` and the 2 MB `app` chunk
-   all download fine.
-3. Inside those bundles the player does:
-   `getReplayToken(apiHost, lessonId, accessToken)` → `getReplayMeta(videoId)` →
-   `data.json` / `securejson.json` next to a media file, and it also checks that the
-   referrer contains `unacademy.com`.
-   **The token comes from a logged-in Unacademy session.** `/api/v1/replay`,
-   `/api/v1/live_class`, `/api/v1/video`, `/api/v1/session` and 30+ sibling paths all 404
-   without it.
-4. The original site (`unacademy-studybison.space-z.ai`) hits the same wall: its
-   `/api/player` renders **"SYNC ERROR: No data found"** for the exact same lecture URL.
+That player needs a signed replay token from a logged-in Unacademy session, so the player page
+itself is a dead end. The recording, however, is served openly from the media CDN:
 
-So `player.uacdn.net` sends **no `X-Frame-Options` and no CSP**, which means the honest way to
-make a lecture watchable in-app is to embed that official player **as-is**, where
-Unacademy's own session resolves the stream — and to say plainly that Plus (paid) classes
-need an Unacademy login. No gate is bypassed. Slides, notes and PDFs are public and proxied
-through `/api/stream` with Range support.
+```
+https://uamedia.uacdn.net/lesson-raw/<CLASS_UID>/output.webm
+```
 
-The lecture room therefore gives you: the official player (plus a one-click "Open player"
-escape hatch), annotated / clean slides, mark-watched progress, prev/next, a filterable
-batch sidebar, and keyboard shortcuts.
+`lib/api.ts → mediaFromVideoUrl()` derives it from the `uid` param of `video_url`
+(verified on multiple lectures: 188–222 MB WebM, `accept-ranges: bytes`; there is no `.mp4`
+variant). `app/api/media` streams it through this origin with full **Range / 206** support, so
+the `<video>` element seeks natively, including from arbitrary offsets.
 
-## Stack
+The lecture room therefore plays the class directly — with speed control (1×–2×), ±10s,
+resume-from-last-position, mark-watched, next/prev, a filterable batch sidebar and a
+"playable only" filter on the batch page. The official player remains one click away
+(`official ↗`) for synced interactive notes, polls and chat.
+
+## Stack## Stack
 
 - Next.js App Router (16.4.x), goals prerendered, live data revalidated every 10 minutes
 - Tailwind CSS with a custom glass/aurora dark design system
@@ -84,6 +76,7 @@ goal_uid  ──►  /api/teachers?goal_uid=…      → real educators per goal
                /api/courses?username=…&type=  → that educator's batches (504 for one JEE teacher)
                /api/lectures?uid=…            → every lecture, video_url + slides_pdf
                /api/player?url=…              → same-origin player for the replay
+               /api/media?url=…               → lecture video stream (Range/206, seekable)
                /api/stream?url=…              → PDF passthrough (inline, Range) for notes
 ```
 
