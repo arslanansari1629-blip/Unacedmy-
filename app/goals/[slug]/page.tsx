@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { goals, getGoal } from '@/lib/goals';
-import { fetchAllTeachers, fetchTeachers, teacherName } from '@/lib/api';
+import { fetchTeachers, teacherName } from '@/lib/api';
 import { TeacherGrid } from '@/components/TeacherGrid';
 import { SaveButton } from '@/components/SaveButton';
 import { LiveBadge } from '@/components/LiveBadge';
@@ -35,13 +35,13 @@ export default async function GoalPage({
   const goal = getGoal(slug);
   if (!goal) notFound();
 
-  const PAGE = 36;
-  const pageNo = Math.max(1, Math.min(30, Number(page ?? '1') || 1));
-  const all = await fetchAllTeachers(goal.uid, 6);
-  const teachers = await fetchTeachers(goal.uid);
-  const total = teachers?.count ?? all.length;
-  const shown = all.slice((pageNo - 1) * PAGE, pageNo * PAGE);
-  const lastPage = Math.max(1, Math.ceil(Math.min(all.length, PAGE * 30) / PAGE));
+  // One upstream page per request: 9 educators each, offset-driven.
+  const PER = 9;
+  const pageNo = Math.max(1, Number(page ?? '1') || 1);
+  const teachers = await fetchTeachers(goal.uid, (pageNo - 1) * PER);
+  const total = teachers?.count ?? 0;
+  const shown = teachers?.results ?? [];
+  const lastPage = Math.max(1, Math.ceil(total / PER));
   const related = goals.filter((g) => g.category === goal.category && g.slug !== goal.slug).slice(0, 4);
   const names = (teachers?.results ?? []).slice(0, 3).map(teacherName);
 
@@ -112,7 +112,7 @@ export default async function GoalPage({
               </Link>
             ) : null}
             <span className="px-2 text-[12px] text-white/45">
-              Page {pageNo} of {lastPage} · {all.length} of {total} educators
+              Page {pageNo} of {lastPage} · {total} educators
             </span>
             {pageNo < lastPage ? (
               <Link

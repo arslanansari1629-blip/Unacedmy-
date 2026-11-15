@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { fetchAllCourses, fetchCourses, fetchTeachers, teacherAvatar, teacherName, Teacher, initials } from '@/lib/api';
+import { fetchCourses, fetchTeachers, teacherAvatar, teacherName, Teacher, initials } from '@/lib/api';
 import { getGoal, goals } from '@/lib/goals';
 import { BatchGrid } from '@/components/BatchGrid';
 import { LiveBadge } from '@/components/LiveBadge';
@@ -41,11 +41,13 @@ export default async function TeacherPage({
   if (!teacher) notFound();
 
   const type = sort === 'recent' ? 'recent' : 'popular';
-  const courses = await fetchAllCourses(teacher.username, 6, type);
-  const PAGE = 24;
-  const pageNo = Math.max(1, Math.min(30, Number(page ?? '1') || 1));
-  const shown = courses.results.slice((pageNo - 1) * PAGE, pageNo * PAGE);
-  const lastPage = Math.max(1, Math.ceil(courses.results.length / PAGE));
+  // One upstream page per request: 12 batches each, offset-driven.
+  const PER = 12;
+  const pageNo = Math.max(1, Number(page ?? '1') || 1);
+  const courses = await fetchCourses(teacher.username, (pageNo - 1) * PER, type);
+  const shown = courses?.results ?? [];
+  const total = courses?.count ?? shown.length;
+  const lastPage = Math.max(1, Math.ceil(total / PER));
   const name = teacherName(teacher);
   const av = teacherAvatar(teacher);
   const goalRecord = getGoal(goal ?? '');
@@ -136,7 +138,7 @@ export default async function TeacherPage({
           );
         })}
         <span className="ml-auto text-[11px] text-white/35">
-          {courses.results.length} batches loaded
+          {total} batches
         </span>
       </div>
 
@@ -156,7 +158,7 @@ export default async function TeacherPage({
             </Link>
           ) : null}
           <span className="px-2 text-[12px] text-white/45">
-            Page {pageNo} of {lastPage} · {courses.results.length} of {courses.count} batches
+            Page {pageNo} of {lastPage} · {total} batches
           </span>
           {pageNo < lastPage ? (
             <Link
@@ -171,7 +173,7 @@ export default async function TeacherPage({
 
       {lastPage <= 1 ? (
         <p className="mt-6 text-center text-[11px] text-white/35">
-          {courses.results.length} batch{courses.results.length === 1 ? '' : 'es'} on this educator, sorted by{' '}
+          {total} batch{total === 1 ? '' : 'es'} on this educator, sorted by{' '}
           {type === 'recent' ? 'newest' : 'popularity'}.
         </p>
       ) : null}
