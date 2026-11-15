@@ -6,13 +6,17 @@ export const runtime = 'nodejs';
 export const maxDuration = 60;
 
 /**
- * Fetch an upstream JS chunk (host fixed) and return a window of its text so the
- * client-side data fetching logic can be read exactly. Dev-facing diagnostic.
+ * Dev diagnostic over the fixed upstream host.
+ *  ?path=/_next/...js&find=<plain substring>[&pad=200]
+ *      -> every offset of the substring plus surrounding text (plain search,
+ *         no regex escaping needed)
+ *  ?path=...&start=&len=   -> raw window of the file
  */
 export async function GET(req: NextRequest) {
-  const p = req.nextUrl.searchParams.get('path') ?? '/';
-  const start = Math.max(0, Number(req.nextUrl.searchParams.get('start') ?? 0));
-  const len = Math.min(20000, Number(req.nextUrl.searchParams.get('len') ?? 6000));
+  const q = req.nextUrl.searchParams;
+  const p = q.get('path') ?? '/';
+  const find = q.get('find');
+  const pad = Math.min(1500, Number(q.get('pad') ?? 220));
 
   const controller = new AbortController();
   const t = setTimeout(() => controller.abort(), 20_000);
@@ -23,13 +27,32 @@ export async function GET(req: NextRequest) {
       cache: 'no-store',
     });
     const text = await res.text();
-    return NextResponse.json({
-      status: res.status,
-      total: text.length,
-      start,
-      len,
-      chunk: text.slice(start, start + len),
-    });
+
+    if (find) {
+      const offsets: number[] = [];
+      let from = 0;
+      for (;;) {
+        const at = text.indexOf(find, from);
+        if (at === -1 || offsets.length >= 25) break;
+        offsets.push(at);
+        from = at + find.length;
+      }
+      const snippets = offsets.map((at) => ({
+        offset: at,
+        text: text.slice(Math.max(0, at - pad), Math.min(text.length, at + find.length + pad)),
+      }));
+      return NextResponse.json({
+        status: res.status,
+        total: text.length,
+        find,
+        occurrences: offsets.length,
+        snippets,
+      });
+    }
+
+    const start = Math.max(0, Number(q.get('start') ?? 0));
+    const len = Math.min(20000, Number(q.get('len') ?? 6000));
+    return NextResponse.json({ status: res.status, total: text.length, start, len, chunk: text.slice(start, start + len) });
   } catch (err) {
     return NextResponse.json({ error: err instanceof Error ? err.message : 'failed' }, { status: 502 });
   } finally {
