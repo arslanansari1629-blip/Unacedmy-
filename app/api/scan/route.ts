@@ -29,6 +29,19 @@ export async function GET(req: NextRequest) {
   const raw = sp.get('raw');
   const mode = sp.get('mode') ?? 'map';
 
+  const urls = sp.get('urls');
+  if (urls) {
+    const list = urls.split(',').map((u) => (u.startsWith('http') ? u : BASE + u));
+    const out = await Promise.all(
+      list.slice(0, 24).map(async (u) => {
+        const r = await grab(u);
+        const media = (r.text.match(/https?:\/\/[^"'\\\s]+(?:\.mp4|\.m3u8|\.webm|\.mpd|\.json)[^"'\\\s]*/g) ?? []).slice(0, 8);
+        return { url: u, status: r.status, len: r.len, ct: r.ct, media, head: r.text.slice(0, 200).replace(/\s+/g, ' ') };
+      }),
+    );
+    return Response.json({ out });
+  }
+
   if (raw) {
     const r = await grab(raw);
     return Response.json({ url: raw, ...r });
