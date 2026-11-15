@@ -14,6 +14,24 @@ export async function GET(req: NextRequest) {
   const chat = sp.get('chat') ?? 'A9UHNO6E';
   const lesson = sp.get('lesson') ?? 'A9UHNO6E';
   const course = sp.get('course') ?? '7WJ8OYWE';
+  const raw = sp.get('url');
+
+  if (raw && /^https:\/\/(api\.unacademy\.com|unacademy\.com|player\.uacdn\.net|static\.uacdn\.net)\/[^\s]*$/.test(raw)) {
+    try {
+      const res = await fetch(raw, {
+        headers: { 'user-agent': UA, accept: 'application/json, */*', referer: 'https://unacademy.com/' },
+        signal: AbortSignal.timeout(15_000),
+        cache: 'no-store',
+      });
+      const text = await res.text();
+      return Response.json(
+        { url: raw, status: res.status, ct: res.headers.get('content-type'), len: text.length, body: text },
+        { headers: { 'cache-control': 'no-store', 'access-control-allow-origin': '*' } },
+      );
+    } catch (e) {
+      return Response.json({ url: raw, error: e instanceof Error ? e.message : 'fail' }, { status: 502 });
+    }
+  }
 
   const urls = [
     `https://api.unacademy.com/api/v1/replay/?uid=${uid}`,
