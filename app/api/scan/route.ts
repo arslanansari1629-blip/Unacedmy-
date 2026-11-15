@@ -29,6 +29,37 @@ export async function GET(req: NextRequest) {
   const raw = sp.get('raw');
   const mode = sp.get('mode') ?? 'map';
 
+  const names = sp.get('names');
+  if (names) {
+    const idx = await grab(`${base}index.html`);
+    const rt = idx.text.match(/static\/js\/runtime-main\.[a-f0-9]+\.js/)?.[0];
+    if (!rt) return Response.json({ error: 'no runtime' });
+    const r = await grab(`${base}${rt}`);
+    const js = r.text;
+    // the chunk-name map lives in the first part of the runtime: {30:"live",32:"microInteraction",...}
+    const map: Record<string, string> = {};
+    for (const m of js.matchAll(/(\d{1,3})\s*:\s*"([A-Za-z][A-Za-z0-9_~-]*)"/g)) map[m[1]] = m[2];
+    // and the hash map: {2:"88be...",...}
+    const hashes: Record<string, string> = {};
+    for (const m of js.matchAll(/(\d{1,3})\s*:\s*"([a-f0-9]{16,24})"/g)) hashes[m[1]] = m[2];
+    const ids = Object.keys(hashes);
+    const candidates: Record<string, string> = {};
+    for (const id of ids) {
+      const nm = map[id];
+      if (!nm) continue;
+      candidates[nm] = `${id}.${hashes[id]}`;
+    }
+    // probe every named chunk to find which ones actually exist
+    const probes = await Promise.all(
+      Object.entries(candidates).slice(0, 22).map(async ([nm, idHash]) => {
+        const u = `${base}static/js/${nm}.${idHash.split('.')[1]}.chunk.js`;
+        const res = await grab(u);
+        return `${nm}: ${res.status} ${res.len}B`;
+      }),
+    );
+    return Response.json({ nameEntries: Object.keys(map).length, map, probes });
+  }
+
   const g = sp.get('grep');
   if (raw && g) {
     const r = await grab(raw);
