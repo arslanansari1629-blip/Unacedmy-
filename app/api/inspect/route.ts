@@ -69,6 +69,22 @@ export async function GET(req: NextRequest) {
 
   if (grepSource) {
     const re = new RegExp(grepSource, 'gi');
+    if (params.get('context')) {
+      const win = Number(params.get('context')) || 220;
+      const snippets: string[] = [];
+      for (let m = re.exec(res.text); m && snippets.length < 25; m = re.exec(res.text)) {
+        const start = Math.max(0, m.index - win);
+        snippets.push(res.text.slice(start, Math.min(res.text.length, m.index + m[0].length + win)).replace(/\s+/g, ' '));
+        if (m.index === re.lastIndex) re.lastIndex++;
+      }
+      return NextResponse.json({
+        target: `${UPSTREAM_ORIGIN}${path}`,
+        status: res.status,
+        size: res.text.length,
+        grep: grepSource,
+        snippets,
+      });
+    }
     return NextResponse.json({
       target: `${UPSTREAM_ORIGIN}${path}`,
       status: res.status,
