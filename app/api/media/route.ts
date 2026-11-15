@@ -26,7 +26,13 @@ export async function GET(req: NextRequest) {
     return new Response('Blocked: url must be an *.uacdn.net media link', { status: 400 });
   }
 
-  const range = req.headers.get('range');
+  /**
+   * A lecture recording is 150-250 MB. Never stream the whole object through one
+   * function invocation: if the client sends no Range, serve a bounded first chunk
+   * as 206 and let the browser continue with follow-up range requests.
+   */
+  const CHUNK = 4 * 1024 * 1024;
+  const range = req.headers.get('range') ?? `bytes=0-${CHUNK - 1}`;
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 280_000);
 
@@ -36,7 +42,7 @@ export async function GET(req: NextRequest) {
         'user-agent': req.headers.get('user-agent') ?? 'Mozilla/5.0',
         referer: 'https://unacademy.com/',
         accept: '*/*',
-        ...(range ? { range } : {}),
+        range,
       },
       redirect: 'follow',
       signal: controller.signal,
