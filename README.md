@@ -31,22 +31,36 @@ _(the `*.vercel.app` project alias stays behind team Deployment Protection — t
 | `/api/asset` | Raw whitelisted `*.uacdn.net` asset passthrough |
 | `/robots.txt` | SEO |
 
-## About lecture playback (read this)
+## About lecture playback (verified, not guesswork)
 
-Unacademy does **not** publish direct media files. A recorded class only exposes
-`live_class.video_url`, which is an official player page
-(`player.uacdn.net/liveweb/v…/index.html?replay=true&uid=…&chat_id=…`).
-That player resolves the stream server-side against a signed session, so:
+Unacademy does not publish direct media files, and I verified this down to the byte level
+rather than assuming it:
 
-- the MP4/HLS URL is **not** in the page, the JS bundle, or any public API
-  (all `static/js/*.chunk.js` files are `403 AccessDenied`, and
-  `/api/v1/replay`, `/api/v1/live_class`, `/api/v1/video` all 404);
-- `player.uacdn.net` sends **no `X-Frame-Options` and no CSP**, so the player is embedded **as-is**
-  in the lecture room — it runs in its own origin, with its own session, and can play.
+1. A lecture exposes only `live_class.video_url` — an official player page
+   (`player.uacdn.net/liveweb/v…/index.html?replay=true&uid=…&chat_id=…`).
+2. The player's webpack chunk *names* are not in `index.html`; only the runtime has hashes.
+   Resolving names to files correctly (they 403 if built wrong) shows
+   `recordedVideoPlayer`, `vendors~recordedVideoPlayer`, `replay` and the 2 MB `app` chunk
+   all download fine.
+3. Inside those bundles the player does:
+   `getReplayToken(apiHost, lessonId, accessToken)` → `getReplayMeta(videoId)` →
+   `data.json` / `securejson.json` next to a media file, and it also checks that the
+   referrer contains `unacademy.com`.
+   **The token comes from a logged-in Unacademy session.** `/api/v1/replay`,
+   `/api/v1/live_class`, `/api/v1/video`, `/api/v1/session` and 30+ sibling paths all 404
+   without it.
+4. The original site (`unacademy-studybison.space-z.ai`) hits the same wall: its
+   `/api/player` renders **"SYNC ERROR: No data found"** for the exact same lecture URL.
 
-No gate is bypassed. Classes flagged `for_plus: true` are Unacademy Plus (paid) and will ask for an
-Unacademy login inside that frame; the site says so in the player card. Slides, notes and PDFs are
-public and served through `/api/stream`.
+So `player.uacdn.net` sends **no `X-Frame-Options` and no CSP**, which means the honest way to
+make a lecture watchable in-app is to embed that official player **as-is**, where
+Unacademy's own session resolves the stream — and to say plainly that Plus (paid) classes
+need an Unacademy login. No gate is bypassed. Slides, notes and PDFs are public and proxied
+through `/api/stream` with Range support.
+
+The lecture room therefore gives you: the official player (plus a one-click "Open player"
+escape hatch), annotated / clean slides, mark-watched progress, prev/next, a filterable
+batch sidebar, and keyboard shortcuts.
 
 ## Stack
 

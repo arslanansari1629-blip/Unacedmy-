@@ -155,6 +155,21 @@ export function LectureStage({
                   </div>
                 </div>
               )}
+              {videoUrl ? (
+                <div className="pointer-events-none absolute inset-x-0 bottom-0 flex items-center justify-between gap-2 bg-gradient-to-t from-black/80 to-transparent px-3 pb-2 pt-8">
+                  <span className="pointer-events-auto text-[10.5px] text-white/55">
+                    Official Unacademy player · login may be required
+                  </span>
+                  <a
+                    href={videoUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="pointer-events-auto rounded-full bg-white/90 px-2.5 py-1 text-[10.5px] font-bold text-ink hover:bg-white"
+                  >
+                    Open player ↗
+                  </a>
+                </div>
+              ) : null}
             </div>
           ) : (
             <div className="bg-black/60">
