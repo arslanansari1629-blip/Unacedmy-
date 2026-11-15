@@ -28,7 +28,8 @@ iframe{position:absolute;inset:0;width:100%;height:100%;border:0}</style></head>
     headers: {
       'content-type': 'text/html; charset=utf-8',
       'cache-control': 'public, max-age=600',
-      'x-frame-options': 'SAMEORIGIN',
+      // The official player sends no XFO/CSP, so embedding is permitted; keep it explicit.
+      'x-frame-options': 'ALLOWALL',
     },
   });
 }

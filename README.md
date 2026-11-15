@@ -1,7 +1,7 @@
 # Study Bison — Study Smarter, Rise Higher
 
 A **live** free study site: 54 exam goals, each with the real educators teaching it, their batches,
-every lecture (playable), and the notes/slides PDFs attached to each class.
+every lecture with its slides PDF, and a full lecture study room (video, annotated notes, progress).
 
 Not a static mock-up — the content comes from the same public catalogue the original app uses:
 `/api/teachers → /api/courses → /api/lectures`, with real `goal_uid`s from Unacademy's own catalog.
@@ -17,21 +17,40 @@ _(the `*.vercel.app` project alias stays behind team Deployment Protection — t
 | --- | --- |
 | `/` | Hero, stats, goal explorer (search + category filters), feature blocks |
 | `/goals` | Full library of all 54 goals |
-| `/goals/[slug]` | Live educators for that goal (avatars, bios, ratings, followers) |
-| `/teachers/[username]` | Educator profile + all their batches |
-| `/teachers/[username]/batch/[uid]` | Every lecture in the batch, playable, with notes PDFs |
+| `/goals/[slug]?page=N` | Live educators for that goal, 9 per page (avatars, bios, ratings, followers) |
+| `/teachers/[username]?page=N&sort=popular\|recent` | Educator profile + all their batches, 12 per page |
+| `/teachers/[username]/batch/[uid]` | Every lecture in the batch, with notes PDFs |
+| `/lectures/[courseUid]/[lectureUid]` | **Lecture study room**: official video, annotated/clean slides, mark-watched, prev/next, filterable sidebar |
+| `/search?q=` | Global goal search across all 54 goals |
 | `/my-courses` | Saved goals, persisted in `localStorage` |
 | `/source` | Live source status: upstream health, latency, proxy docs |
 | `/api/proxy/**` | Reverse proxy to the upstream site (HTML/CSS/JS rewritten) |
 | `/api/health` | JSON upstream reachability + latency |
 | `/api/player` | Same-origin lecture player (host allowlist: `*.uacdn.net`) |
 | `/api/stream` | Inline PDF passthrough with Range (host allowlist: `*.uacdn.net`) |
-| `/api/inspect`, `/api/dump` | Dev diagnostics used to discover the upstream API |
+| `/api/asset` | Raw whitelisted `*.uacdn.net` asset passthrough |
 | `/robots.txt` | SEO |
+
+## About lecture playback (read this)
+
+Unacademy does **not** publish direct media files. A recorded class only exposes
+`live_class.video_url`, which is an official player page
+(`player.uacdn.net/liveweb/v…/index.html?replay=true&uid=…&chat_id=…`).
+That player resolves the stream server-side against a signed session, so:
+
+- the MP4/HLS URL is **not** in the page, the JS bundle, or any public API
+  (all `static/js/*.chunk.js` files are `403 AccessDenied`, and
+  `/api/v1/replay`, `/api/v1/live_class`, `/api/v1/video` all 404);
+- `player.uacdn.net` sends **no `X-Frame-Options` and no CSP**, so the player is embedded **as-is**
+  in the lecture room — it runs in its own origin, with its own session, and can play.
+
+No gate is bypassed. Classes flagged `for_plus: true` are Unacademy Plus (paid) and will ask for an
+Unacademy login inside that frame; the site says so in the player card. Slides, notes and PDFs are
+public and served through `/api/stream`.
 
 ## Stack
 
-- Next.js App Router, fully static prerendered (61 pages)
+- Next.js App Router (16.4.x), goals prerendered, live data revalidated every 10 minutes
 - Tailwind CSS with a custom glass/aurora dark design system
 - Client-side saved-courses context (no backend, no account needed)
 - Fonts loaded via stylesheet link so builds never depend on Google Fonts
