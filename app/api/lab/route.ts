@@ -34,6 +34,22 @@ export async function GET(req: NextRequest) {
   }
 
   const urls = [
+    `https://unacademy.com/embed/3W2MQTJM`,
+    `https://unacademy.com/embed/3W2MQTJM?distribution_key=ST5JJHT60S802CAO780L&c=false`,
+    `https://api.unacademy.com/api/v1/live_class/${lesson}/`,
+    `https://api.unacademy.com/api/v1/live_class/?chat_id=${lesson}`,
+    `https://api.unacademy.com/api/v1/post/${lesson}/live_class/`,
+    `https://api.unacademy.com/api/v1/post/${lesson}/video/`,
+    `https://api.unacademy.com/api/v1/video_asset/${uid}/`,
+    `https://api.unacademy.com/api/v1/replay_asset/${uid}/`,
+    `https://api.unacademy.com/api/v1/recording/${chat}/`,
+    `https://api.unacademy.com/api/v2/live_class/${chat}/`,
+    `https://api.unacademy.com/api/v1/stream/${uid}/`,
+    `https://api.unacademy.com/api/v1/media/${uid}/`,
+    `https://api.unacademy.com/api/v1/asset/${uid}/`,
+    `https://api.unacademy.com/api/v1/playback/?uid=${uid}`,
+    `https://api.unacademy.com/api/v1/session/${chat}/`,
+    `https://api.unacademy.com/api/v1/post/${lesson}/download/`,
     `https://api.unacademy.com/api/v1/replay/?uid=${uid}`,
     `https://api.unacademy.com/api/v1/replay/${uid}/`,
     `https://api.unacademy.com/api/v2/replay/?uid=${uid}`,
