@@ -27,6 +27,12 @@ export function Footer() {
             <ul className="mt-4 space-y-2.5 text-sm text-white/65">
               <li><Link href="/goals" className="hover:text-white">Goals</Link></li>
               <li><Link href="/my-courses" className="hover:text-white">My Courses</Link></li>
+              <li><Link href="/source" className="hover:text-white">Live Source</Link></li>
+              <li>
+                <a href="/api/proxy/" className="hover:text-white">
+                  Mirrored site
+                </a>
+              </li>
               <li>
                 <a href="https://t.me/studyvaultpro" target="_blank" rel="noreferrer" className="hover:text-white">
                   Telegram

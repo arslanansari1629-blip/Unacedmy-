@@ -12,7 +12,9 @@ export function rewriteBody(body: string, contentType: string | null, upstream: 
     (contentType.includes('text/html') || contentType.includes('text/css') || contentType.includes('javascript'));
 
   if (textual) {
-    body = body.replace(/(["'(\s])\/(?!api\/proxy)(?!\/)([\w./@~%+-]*)/g, `$1${PROXY_ORIGIN}/$2`);
+    // Only rewrite "/" when it starts a real asset reference — right after a quote,
+    // "(", "=" or ":" — so prose like "UP PSC / UPSSSC" is never touched.
+    body = body.replace(/(["'=(:])\/(?!api\/proxy)(?!\/)([\w.@~%+-][\w./@~%+-]*)/g, `$1${PROXY_ORIGIN}/$2`);
   }
   return body;
 }

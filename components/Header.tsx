@@ -10,6 +10,7 @@ const links = [
   { href: '/', label: 'Home' },
   { href: '/goals', label: 'Goals' },
   { href: '/my-courses', label: 'My Courses' },
+  { href: '/source', label: 'Live Source' },
 ];
 
 export function Header() {
