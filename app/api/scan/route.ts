@@ -54,7 +54,7 @@ export async function GET(req: NextRequest) {
       Object.entries(candidates).slice(0, 22).map(async ([nm, idHash]) => {
         const u = `${base}static/js/${nm}.${idHash.split('.')[1]}.chunk.js`;
         const res = await grab(u);
-        return `${nm}: ${res.status} ${res.len}B`;
+        return { url: u, status: res.status, len: res.len };
       }),
     );
     return Response.json({ nameEntries: Object.keys(map).length, map, probes });
