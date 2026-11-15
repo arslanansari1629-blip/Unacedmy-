@@ -29,6 +29,25 @@ export async function GET(req: NextRequest) {
   const raw = sp.get('raw');
   const mode = sp.get('mode') ?? 'map';
 
+  const g = sp.get('grep');
+  if (raw && g) {
+    const r = await grab(raw);
+    let re: RegExp;
+    try {
+      re = new RegExp(g, 'gi');
+    } catch {
+      return Response.json({ error: 'bad regex' }, { status: 400 });
+    }
+    const ctx = Number(sp.get('ctx') ?? '110');
+    const hits: string[] = [];
+    for (const m of r.text.matchAll(re)) {
+      const i = m.index ?? 0;
+      hits.push(r.text.slice(Math.max(0, i - ctx), i + m[0].length + ctx).replace(/\s+/g, ' '));
+      if (hits.length >= 40) break;
+    }
+    return Response.json({ url: raw, status: r.status, len: r.len, hits });
+  }
+
   const urls = sp.get('urls');
   if (urls) {
     const list = urls.split(',').map((u) => (u.startsWith('http') ? u : BASE + u));
