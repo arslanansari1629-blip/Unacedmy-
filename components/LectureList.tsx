@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useMemo, useState } from 'react';
-import { Lecture } from '@/lib/api';
+import { Lecture, mediaFromVideoUrl } from '@/lib/api';
 
 const dur = (s?: number) => {
   if (!s) return '';
@@ -25,21 +25,25 @@ export function LectureList({
   courseUid,
   goal = '',
   teacher = '',
+  playableCount = 0,
 }: {
   items: Lecture[];
   courseUid?: string;
   goal?: string;
   teacher?: string;
+  playableCount?: number;
 }) {
   const [q, setQ] = useState('');
+  const [playableOnly, setPlayableOnly] = useState(false);
   const [openIndex, setOpenIndex] = useState<number | null>(null);
 
   const rows = useMemo(() => {
     const term = q.trim().toLowerCase();
     return items
       .map((l, i) => ({ lecture: l.value, index: i }))
-      .filter(({ lecture }) => !term || (lecture?.title ?? '').toLowerCase().includes(term));
-  }, [items, q]);
+      .filter(({ lecture }) => !term || (lecture?.title ?? '').toLowerCase().includes(term))
+      .filter(({ lecture }) => !playableOnly || Boolean(mediaFromVideoUrl(lecture?.live_class?.video_url)));
+  }, [items, q, playableOnly]);
 
   if (items.length === 0) {
     return (
@@ -60,6 +64,21 @@ export function LectureList({
           className="w-full rounded-xl border border-white/10 bg-black/40 py-2.5 pl-10 pr-4 text-sm text-white placeholder:text-white/30 outline-none focus:border-brand/60"
         />
         <span className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-white/30">🔍</span>
+      </div>
+      <div className="mt-2 flex flex-wrap items-center gap-2">
+        <button
+          onClick={() => setPlayableOnly((v) => !v)}
+          className={`rounded-full border px-3 py-1 text-[11px] font-semibold transition ${
+            playableOnly
+              ? 'border-emerald-400/50 bg-emerald-400/15 text-emerald-300'
+              : 'border-white/12 text-white/55 hover:border-white/30 hover:text-white'
+          }`}
+        >
+          {playableOnly ? '✓ ' : ''}Playable only ({playableCount})
+        </button>
+        <span className="text-[11px] text-white/30">
+          {rows.length} of {items.length} lectures
+        </span>
       </div>
 
       <ul className="mt-3 divide-y divide-white/[0.06] overflow-hidden rounded-2xl border border-white/10 bg-white/[0.02]">
@@ -82,6 +101,9 @@ export function LectureList({
                     {lc?.live_at ? <span>{DATE(lc.live_at)}</span> : null}
                     {lecture.for_plus ? <span className="text-amber-300/70">Plus</span> : null}
                     {slides?.with_annotation ? <span className="text-sky-300/70">📄 notes</span> : null}
+                    {mediaFromVideoUrl(lc?.video_url) ? (
+                      <span className="text-emerald-300/80">▶ playable</span>
+                    ) : null}
                   </p>
                 </div>
                 <div className="flex shrink-0 items-center gap-1.5">

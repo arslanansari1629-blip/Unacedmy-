@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { fetchCourses, fetchLectures, Lecture } from '@/lib/api';
+import { fetchCourses, fetchLectures, mediaFromVideoUrl, Lecture } from '@/lib/api';
 import { getGoal } from '@/lib/goals';
 import { LectureList } from '@/components/LectureList';
 import { LiveBadge } from '@/components/LiveBadge';
@@ -30,7 +30,7 @@ export default async function BatchPage({
   const goalRecord = getGoal(goal ?? '');
 
   const items: Lecture[] = lectures?.results ?? [];
-  const withVideo = items.filter((l) => l.value?.live_class?.video_url).length;
+  const withVideo = items.filter((l) => mediaFromVideoUrl(l.value?.live_class?.video_url)).length;
   const withSlides = items.filter((l) => l.value?.live_class?.slides_pdf?.with_annotation).length;
 
   if (!course && items.length === 0) notFound();
@@ -99,7 +99,13 @@ export default async function BatchPage({
         Lectures
       </h2>
 
-      <LectureList items={items} courseUid={uid} goal={goal ?? ''} teacher={username} />
+      <LectureList
+        items={items}
+        courseUid={uid}
+        goal={goal ?? ''}
+        teacher={username}
+        playableCount={withVideo}
+      />
     </section>
   );
 }

@@ -65,6 +65,23 @@ export type Lecture = {
   };
 };
 
+/**
+ * Unacademy's raw lecture media lives at
+ * https://uamedia.uacdn.net/lesson-raw/<lesson uid>/output.webm
+ * where <lesson uid> is the `uid` query param of the official player URL.
+ * This is what makes a lecture directly playable.
+ */
+export function mediaFromVideoUrl(videoUrl?: string | null): string | null {
+  if (!videoUrl) return null;
+  try {
+    const uid = new URL(videoUrl).searchParams.get('uid');
+    if (!uid) return null;
+    return `https://uamedia.uacdn.net/lesson-raw/${encodeURIComponent(uid)}/output.webm`;
+  } catch {
+    return null;
+  }
+}
+
 export const teacherName = (t: Teacher) =>
   `${t.first_name ?? ''} ${t.last_name ?? ''}`.trim() || t.username;
 

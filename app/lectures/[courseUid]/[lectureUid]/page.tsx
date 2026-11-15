@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { fetchLectures, Lecture } from '@/lib/api';
+import { fetchLectures, mediaFromVideoUrl, Lecture } from '@/lib/api';
 import { LectureStage } from '@/components/LectureStage';
 import { LiveBadge } from '@/components/LiveBadge';
 
@@ -42,7 +42,7 @@ export default async function LecturePage({
     uid: l.value?.uid ?? '',
     title: l.value?.title ?? '',
     duration: l.value?.live_class?.video_duration ?? 0,
-    hasVideo: Boolean(l.value?.live_class?.video_url),
+    hasVideo: Boolean(mediaFromVideoUrl(l.value?.live_class?.video_url)),
     hasNotes: Boolean(l.value?.live_class?.slides_pdf?.with_annotation),
     plus: Boolean(l.value?.for_plus),
   }));
@@ -83,6 +83,9 @@ export default async function LecturePage({
                 {new Date(lc.live_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
               </span>
             ) : null}
+            {mediaFromVideoUrl(lc?.video_url) ? (
+              <span className="text-emerald-300/90">▶ playable</span>
+            ) : null}
             {lecture.for_plus ? <span className="text-amber-300/80">Plus class</span> : null}
             {lc?.slides_pdf?.with_annotation ? <span className="text-sky-300/80">annotated notes</span> : null}
           </p>
@@ -93,6 +96,7 @@ export default async function LecturePage({
       <LectureStage
         title={lecture.title}
         videoUrl={lc?.video_url ?? null}
+        mediaUrl={mediaFromVideoUrl(lc?.video_url)}
         slidesWith={lc?.slides_pdf?.with_annotation ?? null}
         slidesClean={lc?.slides_pdf?.no_annotation ?? null}
         permalink={lecture.permalink ?? null}

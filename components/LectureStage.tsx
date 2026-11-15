@@ -17,9 +17,18 @@ const KEY = 'studybison:watched:v1';
 
 const mins = (s: number) => (s ? `${Math.round(s / 60)}m` : '');
 
+const fmtTime = (s: number) => {
+  if (!s || !isFinite(s)) return '0:00';
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  const sec = Math.floor(s % 60);
+  return h ? `${h}:${String(m).padStart(2, '0')}:${String(sec).padStart(2, '0')}` : `${m}:${String(sec).padStart(2, '0')}`;
+};
+
 export function LectureStage({
   title,
   videoUrl,
+  mediaUrl,
   slidesWith,
   slidesClean,
   permalink,
@@ -34,6 +43,7 @@ export function LectureStage({
 }: {
   title: string;
   videoUrl: string | null;
+  mediaUrl: string | null;
   slidesWith: string | null;
   slidesClean: string | null;
   permalink: string | null;
@@ -51,6 +61,12 @@ export function LectureStage({
   const [watched, setWatched] = useState<string[]>([]);
   const [filter, setFilter] = useState('');
   const stageRef = useRef<HTMLDivElement>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const [duration, setDuration] = useState(0);
+  const [now, setNow] = useState(0);
+  const [playing, setPlaying] = useState(false);
+  const [resumed, setResumed] = useState(false);
+  const [rate, setRate] = useState(1);
 
   const activeSlides = slideMode === 'annotated' ? slidesWith : slidesClean;
 
@@ -81,6 +97,13 @@ export function LectureStage({
       const el = e.target as HTMLElement;
       if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA')) return;
       if (e.key === 'w') toggleWatched();
+      if (e.key === ' ' && videoRef.current) {
+        e.preventDefault();
+        if (videoRef.current.paused) void videoRef.current.play();
+        else videoRef.current.pause();
+      }
+      if (e.key === 'ArrowLeft' && videoRef.current) videoRef.current.currentTime -= 10;
+      if (e.key === 'ArrowRight' && videoRef.current) videoRef.current.currentTime += 10;
       if (e.key === 's') setTab((t) => (t === 'slides' ? 'video' : 'slides'));
       if (e.key === 'j' && next) {
         window.location.href = `/lectures/${courseUid}/${next.uid}?goal=${encodeURIComponent(goal)}&teacher=${encodeURIComponent(teacher)}`;
@@ -135,8 +158,43 @@ export function LectureStage({
           </div>
 
           {tab === 'video' ? (
+            <>
             <div className="relative aspect-video w-full bg-black">
-              {videoUrl ? (
+              {mediaUrl ? (
+                <video
+                  ref={videoRef}
+                  src={`/api/media?url=${encodeURIComponent(mediaUrl)}`}
+                  controls
+                  controlsList="nodownload"
+                  playsInline
+                  preload="metadata"
+                  poster={undefined}
+                  className="absolute inset-0 h-full w-full bg-black object-contain"
+                  onLoadedMetadata={(e) => {
+                    const el = e.currentTarget;
+                    setDuration(el.duration || 0);
+                    try {
+                      const saved = Number(localStorage.getItem(`studybison:pos:${lectureUid}`) ?? '0');
+                      if (saved > 5 && saved < (el.duration || 0) - 10) {
+                        el.currentTime = saved;
+                        setResumed(true);
+                      }
+                    } catch {}
+                  }}
+                  onTimeUpdate={(e) => {
+                    const t = Math.floor(e.currentTarget.currentTime);
+                    setNow(t);
+                    if (t % 10 === 0) {
+                      try {
+                        localStorage.setItem(`studybison:pos:${lectureUid}`, String(t));
+                      } catch {}
+                    }
+                  }}
+                  onPlay={() => setPlaying(true)}
+                  onPause={() => setPlaying(false)}
+                  onEnded={toggleWatched}
+                />
+              ) : videoUrl ? (
                 <iframe
                   key={videoUrl}
                   src={videoUrl}
@@ -171,6 +229,81 @@ export function LectureStage({
                 </div>
               ) : null}
             </div>
+            {mediaUrl ? (
+                <div className="flex flex-wrap items-center gap-1.5 border-t border-white/10 bg-black/60 px-2.5 py-1.5">
+                  <button
+                    onClick={() => {
+                      const el = videoRef.current;
+                      if (!el) return;
+                      if (el.paused) void el.play();
+                      else el.pause();
+                    }}
+                    className="grid h-7 w-7 place-items-center rounded-full bg-white text-ink"
+                    title="Play / pause (space)"
+                  >
+                    {playing ? '❚❚' : '▶'}
+                  </button>
+                  <span className="ml-1 font-mono text-[10.5px] text-white/50">
+                    {fmtTime(now)} / {fmtTime(duration)}
+                  </span>
+                  {resumed ? (
+                    <span className="rounded-full bg-sky-400/15 px-2 py-0.5 text-[10px] font-semibold text-sky-300">
+                      resumed
+                    </span>
+                  ) : null}
+                  <div className="ml-auto flex items-center gap-1">
+                    <span className="text-[10px] text-white/35">speed</span>
+                    {[1, 1.25, 1.5, 1.75, 2].map((r) => (
+                      <button
+                        key={r}
+                        onClick={() => {
+                          setRate(r);
+                          if (videoRef.current) videoRef.current.playbackRate = r;
+                        }}
+                        className={`rounded px-1.5 py-0.5 text-[10.5px] font-semibold transition ${
+                          rate === r ? 'bg-white text-ink' : 'text-white/50 hover:text-white'
+                        }`}
+                      >
+                        {r}×
+                      </button>
+                    ))}
+                    <button
+                      onClick={() => {
+                        const el = videoRef.current;
+                        if (!el) return;
+                        el.currentTime = Math.max(0, el.currentTime - 10);
+                      }}
+                      className="ml-1 rounded px-1.5 py-0.5 text-[10.5px] text-white/50 hover:text-white"
+                      title="Back 10s (←)"
+                    >
+                      ↺10s
+                    </button>
+                    <button
+                      onClick={() => {
+                        const el = videoRef.current;
+                        if (!el) return;
+                        el.currentTime = Math.min(el.duration || 0, el.currentTime + 10);
+                      }}
+                      className="rounded px-1.5 py-0.5 text-[10.5px] text-white/50 hover:text-white"
+                      title="Forward 10s (→)"
+                    >
+                      10s↻
+                    </button>
+                    {videoUrl ? (
+                      <a
+                        href={videoUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="ml-1 rounded-full border border-white/15 px-2 py-0.5 text-[10px] font-semibold text-white/60 hover:border-white/35 hover:text-white"
+                        title="Open the official Unacademy player (notes sync, polls)"
+                      >
+                        official ↗
+                      </a>
+                    ) : null}
+                  </div>
+                </div>
+            ) : null}
+            </>
           ) : (
             <div className="bg-black/60">
               <div className="flex items-center gap-2 border-b border-white/10 px-3 py-2">
@@ -249,9 +382,9 @@ export function LectureStage({
         </div>
 
         <p className="mt-3 rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2 text-[11px] leading-relaxed text-white/50">
-          Video is delivered by Unacademy&apos;s official player, embedded as-is. Some classes are &ldquo;Plus&rdquo;
-          (paid) and will ask you to sign in with an Unacademy account — that gate is theirs and this site does not
-          bypass it. Slides, notes and PDFs on this page are open to everyone.
+          {mediaUrl
+            ? 'Streaming the class recording directly, proxied through this site with byte-range seek support. The annotated slides sync with the lecture video.'
+            : 'Video is delivered by Unacademy\u2019s official player, embedded as-is. Some classes are Plus (paid) and will ask you to sign in there.'}
         </p>
       </div>
 
