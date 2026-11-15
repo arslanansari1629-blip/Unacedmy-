@@ -24,6 +24,30 @@ export async function GET(req: NextRequest) {
     return Response.json({ error: 'blocked host' }, { status: 400 });
   }
 
+  if (sp.get('head')) {
+    try {
+      const h = await fetch(u, {
+        method: sp.get('method') === 'GET' ? 'GET' : 'HEAD',
+        headers: { 'user-agent': UA, referer: 'https://unacademy.com/', range: sp.get('range') ?? 'bytes=0-1' },
+        redirect: 'follow',
+        signal: AbortSignal.timeout(15_000),
+        cache: 'no-store',
+      });
+      return Response.json({
+        url: u.toString(),
+        status: h.status,
+        ct: h.headers.get('content-type'),
+        len: h.headers.get('content-length'),
+        cr: h.headers.get('content-range'),
+        ar: h.headers.get('accept-ranges'),
+        cors: h.headers.get('access-control-allow-origin'),
+        fin: h.headers.get('x-final-url') ?? null,
+      });
+    } catch (e) {
+      return Response.json({ url: u.toString(), error: e instanceof Error ? e.message : 'fail' }, { status: 502 });
+    }
+  }
+
   try {
     const res = await fetch(u, {
       headers: {
