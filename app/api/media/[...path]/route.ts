@@ -12,15 +12,22 @@ const ALLOWED = /^https:\/\/([a-z0-9-]+\.)*uacdn\.net\//i;
 const HOP = new Set(['host', 'connection', 'content-length', 'content-encoding', 'transfer-encoding']);
 
 function rewrite(html: string, baseUrl: string): string {
-  const base = new URL(baseUrl);
-  const dir = base.pathname.replace(/[^/]*$/, '');
+  try {
+    const base = new URL(baseUrl);
+    const dir = base.pathname.replace(/[^/]*$/, '');
 
-  // relative script/style/img srcs -> absolute on the CDN through this proxy
-  return html.replace(/(src|href)="(?!https?:|\/\/)([^"]+)"/g, (_m, attr, rel) => {
-    const clean = rel.replace(/^\.\//, '');
-    const abs = new URL(clean.startsWith('/') ? clean : dir + clean, base).toString();
-    return `${attr}="/api/asset?url=${encodeURIComponent(abs)}"`;
-  });
+    return html.replace(/(src|href)="(?!https?:|\/\/|#|data:|blob:)([^"]+)"/g, (_m, attr, rel) => {
+      try {
+        const clean = rel.replace(/^\.\//, '');
+        const abs = new URL(clean.startsWith('/') ? clean : dir + clean, base).toString();
+        return `${attr}="/api/asset?url=${encodeURIComponent(abs)}"`;
+      } catch {
+        return `${attr}="${rel}"`;
+      }
+    });
+  } catch {
+    return html;
+  }
 }
 
 export async function GET(req: NextRequest, ctx: { params: Promise<{ path: string[] }> }) {

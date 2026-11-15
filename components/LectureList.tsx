@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useMemo, useState } from 'react';
 import { Lecture } from '@/lib/api';
 
@@ -19,7 +20,17 @@ const DATE = (iso?: string) => {
   }
 };
 
-export function LectureList({ items }: { items: Lecture[] }) {
+export function LectureList({
+  items,
+  courseUid,
+  goal = '',
+  teacher = '',
+}: {
+  items: Lecture[];
+  courseUid?: string;
+  goal?: string;
+  teacher?: string;
+}) {
   const [q, setQ] = useState('');
   const [openIndex, setOpenIndex] = useState<number | null>(null);
 
@@ -85,7 +96,15 @@ export function LectureList({ items }: { items: Lecture[] }) {
                       Notes
                     </a>
                   ) : null}
-                  {video ? (
+                  {video && courseUid ? (
+                    <Link
+                      href={`/lectures/${courseUid}/${lecture.uid}?goal=${encodeURIComponent(goal)}&teacher=${encodeURIComponent(teacher)}`}
+                      className="flex items-center gap-1 rounded-full bg-white px-3 py-1 text-[10.5px] font-bold text-ink transition hover:bg-white/90"
+                    >
+                      <svg width="8" height="8" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z" /></svg>
+                      Play
+                    </Link>
+                  ) : video ? (
                     <button
                       onClick={() => setOpenIndex(isOpen ? null : index)}
                       className="flex items-center gap-1 rounded-full bg-white px-3 py-1 text-[10.5px] font-bold text-ink transition hover:bg-white/90"

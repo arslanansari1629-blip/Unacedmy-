@@ -99,7 +99,7 @@ export default async function BatchPage({
         Lectures
       </h2>
 
-      <LectureList items={items} />
+      <LectureList items={items} courseUid={uid} goal={goal ?? ''} teacher={username} />
     </section>
   );
 }
