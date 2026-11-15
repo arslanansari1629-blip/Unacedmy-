@@ -14,9 +14,9 @@ export default function SourcePage() {
       <p className="text-[10.5px] font-semibold tracking-[0.22em] text-brand">PROXY LAYER</p>
       <h1 className="mt-3 font-display text-3xl font-extrabold tracking-tight sm:text-4xl">Live source</h1>
       <p className="mt-3 max-w-2xl text-sm leading-relaxed text-white/55">
-        Every path this app does not define itself is reverse-proxied to{' '}
-        <span className="text-white/80">{UPSTREAM_ORIGIN}</span>. Assets, fonts and API calls referenced by the
-        original site are rewritten through the same proxy, so the copy stays in sync with the source.
+        The source site's own paths are reverse-proxied live to{' '}
+        <span className="text-white/80">{UPSTREAM_ORIGIN}</span> — nothing is snapshotted. Assets, fonts and API
+        calls referenced by the original are rewritten through the same proxy, so the mirror stays in sync.
       </p>
 
       <SourceStatus />
@@ -42,8 +42,12 @@ export default function SourcePage() {
           <p className="text-[11px] font-semibold tracking-[0.16em] text-white/40">FALLBACK ROUTING</p>
           <p className="mt-2 font-mono text-xs text-accent">middleware.ts</p>
           <p className="mt-3 text-sm leading-relaxed text-white/55">
-            Unknown paths are transparently rewritten to the proxy instead of returning 404 — the same URLs the
-            source serves work here. Curated pages (goals, my courses) keep their own routes.
+            The source's paths (<code className="rounded bg-white/10 px-1.5 py-0.5 text-[11px]">/about</code>,{' '}
+            <code className="rounded bg-white/10 px-1.5 py-0.5 text-[11px]">/lectures</code>,{' '}
+            <code className="rounded bg-white/10 px-1.5 py-0.5 text-[11px]">/course/*</code>,{' '}
+            <code className="rounded bg-white/10 px-1.5 py-0.5 text-[11px]">/library/*</code>) are rewritten to the
+            proxy instead of 404-ing, and anything the upstream itself answers with 404 mirrors that 404. Curated
+            pages keep their own routes and never pay a proxy call.
           </p>
           <Link href="/goals" className="mt-4 inline-flex text-[11px] font-semibold text-brand hover:text-accent">
             Browse curated goals →
