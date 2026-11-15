@@ -33,6 +33,39 @@ export async function GET(req: NextRequest) {
     }
   }
 
+  const frameTargets = [
+    `https://player.uacdn.net/liveweb/v4031/index.html?replay=true&uid=${uid}&chat_id=${chat}`,
+    `https://unacademy.com/lesson/x/${lesson}`,
+    `https://unacademy.com/embed/3W2MQTJM`,
+  ];
+
+  if (sp.get('mode') === 'frames') {
+    const out = await Promise.all(
+      frameTargets.map(async (u) => {
+        try {
+          const res = await fetch(u, {
+            headers: { 'user-agent': UA, referer: 'https://unacademy.com/' },
+            signal: AbortSignal.timeout(12_000),
+            cache: 'no-store',
+          });
+          const h = res.headers;
+          return {
+            u,
+            status: res.status,
+            xfo: h.get('x-frame-options'),
+            csp: h.get('content-security-policy'),
+            cspRo: h.get('content-security-policy-report-only'),
+            acao: h.get('access-control-allow-origin'),
+            ct: h.get('content-type'),
+          };
+        } catch (e) {
+          return { u, error: e instanceof Error ? e.message : 'fail' };
+        }
+      }),
+    );
+    return Response.json({ out }, { headers: { 'cache-control': 'no-store' } });
+  }
+
   const urls = [
     `https://unacademy.com/embed/3W2MQTJM`,
     `https://unacademy.com/embed/3W2MQTJM?distribution_key=ST5JJHT60S802CAO780L&c=false`,
