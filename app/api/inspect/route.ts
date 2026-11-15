@@ -3,68 +3,97 @@ import { UPSTREAM_ORIGIN } from '@/lib/upstream';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
+export const maxDuration = 60;
 
-/**
- * Diagnostic endpoint (same-origin only, upstream host fixed): fetches a path from
- * the upstream site and reports what it references, so the real content API can be
- * discovered instead of guessed. Never fetches arbitrary hosts.
- */
-export async function GET(req: NextRequest) {
-  const p = req.nextUrl.searchParams.get('path') ?? '/';
-  const grep = req.nextUrl.searchParams.get('grep');
-  const path = p.startsWith('/') ? p : `/${p}`;
-  const target = `${UPSTREAM_ORIGIN}${path}`;
+const UA = 'Mozilla/5.0 (compatible; StudyBisonInspect/1.0)';
 
+async function get(path: string) {
   const controller = new AbortController();
-  const t = setTimeout(() => controller.abort(), 20_000);
-
+  const t = setTimeout(() => controller.abort(), 15_000);
   try {
-    const res = await fetch(target, {
-      headers: {
-        'user-agent': 'Mozilla/5.0 (compatible; StudyBisonInspect/1.0)',
-        accept: '*/*',
-        'accept-encoding': 'identity',
-      },
+    const res = await fetch(`${UPSTREAM_ORIGIN}${path}`, {
+      headers: { 'user-agent': UA, accept: '*/*', 'accept-encoding': 'identity' },
       signal: controller.signal,
       cache: 'no-store',
-      redirect: 'follow',
     });
     const text = await res.text();
-
-    if (grep) {
-      const re = new RegExp(grep, 'gi');
-      const matches = Array.from(new Set(text.match(re) ?? [])).slice(0, 60);
-      return NextResponse.json({ target, status: res.status, size: text.length, grep, matches });
-    }
-
-    const scripts = Array.from(new Set(text.match(/src="([^"]+\.js[^"]*)"/g)?.map((s) => s.slice(5, -1)) ?? []));
-    const links = Array.from(new Set(text.match(/href="([^"]+)"/g)?.map((s) => s.slice(6, -1)) ?? []));
-    const apis = Array.from(
-      new Set(
-        [
-          ...(text.match(/https?:\/\/[a-z0-9.-]*api[a-z0-9./_-]*/gi) ?? []),
-          ...(text.match(/["'](\/api\/[a-z0-9./_${}-]*)["']/gi) ?? []),
-          ...(text.match(/graphql[a-z0-9./_-]*/gi) ?? []),
-        ],
-      ),
-    ).slice(0, 40);
-
-    return NextResponse.json({
-      target,
-      status: res.status,
-      size: text.length,
-      contentType: res.headers.get('content-type'),
-      scriptCount: scripts.length,
-      scripts: scripts.slice(0, 40),
-      links: links.slice(0, 40),
-      apiHints: apis,
-    });
+    return { path, status: res.status, text };
   } catch (err) {
-    return NextResponse.json(
-      { target, error: err instanceof Error ? err.message : 'fetch failed' },
-      { status: 502 },
-    );
+    return { path, status: 0, text: '', error: err instanceof Error ? err.message : 'failed' };
   } finally {
     clearTimeout(t);
   }
+}
+
+/**
+ * Diagnostics for the upstream site (host fixed, same-origin only).
+ *  ?path=/            -> list script/link/API hints for one page
+ *  ?scan=1&grep=...   -> fetch the homepage, then every JS chunk, and grep them all
+ */
+export async function GET(req: NextRequest) {
+  const params = req.nextUrl.searchParams;
+  const grepSource = params.get('grep');
+
+  if (params.get('scan')) {
+    const home = await get(params.get('path') || '/');
+    const scripts = Array.from(
+      new Set(home.text.match(/\/_next\/static\/[^"']+\.js/g) ?? []),
+    ).slice(0, 20);
+
+    const re = grepSource ? new RegExp(grepSource, 'gi') : null;
+    const buckets: Array<{ script: string; status: number; size: number; matches: string[] }> = [];
+
+    await Promise.all(
+      scripts.map(async (script) => {
+        const res = await get(script);
+        const matches = re ? Array.from(new Set(res.text.match(re) ?? [])).slice(0, 40) : [];
+        buckets.push({ script, status: res.status, size: res.text.length, matches });
+      }),
+    );
+
+    return NextResponse.json({
+      homepageStatus: home.status,
+      homepageSize: home.text.length,
+      scriptsScanned: buckets.length,
+      grep: grepSource,
+      results: buckets
+        .sort((a, b) => b.matches.length - a.matches.length)
+        .map((b) => ({ script: b.script, status: b.status, size: b.size, matchCount: b.matches.length, matches: b.matches })),
+    });
+  }
+
+  const p = params.get('path') ?? '/';
+  const path = p.startsWith('/') ? p : `/${p}`;
+  const res = await get(path);
+  if (res.error) return NextResponse.json({ target: `${UPSTREAM_ORIGIN}${path}`, error: res.error }, { status: 502 });
+
+  if (grepSource) {
+    const re = new RegExp(grepSource, 'gi');
+    return NextResponse.json({
+      target: `${UPSTREAM_ORIGIN}${path}`,
+      status: res.status,
+      size: res.text.length,
+      matches: Array.from(new Set(res.text.match(re) ?? [])).slice(0, 60),
+    });
+  }
+
+  const scripts = Array.from(new Set(res.text.match(/\/_next\/static\/[^"']+\.js/g) ?? []));
+  const links = Array.from(new Set(res.text.match(/href="([^"]+)"/g)?.map((s) => s.slice(6, -1)) ?? []));
+  const apiHints = Array.from(
+    new Set([
+      ...(res.text.match(/https?:\/\/[a-z0-9.-]*api[a-z0-9./_-]*/gi) ?? []),
+      ...(res.text.match(/["'](\/api\/[a-z0-9./_-]*)["']/gi) ?? []),
+      ...(res.text.match(/graphql[a-z0-9./_-]*/gi) ?? []),
+    ]),
+  ).slice(0, 40);
+
+  return NextResponse.json({
+    target: `${UPSTREAM_ORIGIN}${path}`,
+    status: res.status,
+    size: res.text.length,
+    scriptCount: scripts.length,
+    scripts,
+    links: links.slice(0, 40),
+    apiHints,
+  });
 }
